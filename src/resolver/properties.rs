@@ -234,9 +234,9 @@ impl <'a> PropertySet<'a> {
 
 // Property reference (element of filter expression)
 #[derive(Debug, Clone, PartialEq)]
-pub enum PropertyRef {
-    Value(String), // reference to property value (prop name)
-    Aspect(String, String), // reference to property aspect (prop name, aspect name)
+pub enum PropertyRef<'a> {
+    Value(&'a str), // reference to property value (prop name)
+    Aspect(&'a str, &'a str), // reference to property aspect (prop name, aspect name)
 }
 
 pub fn parse_prop_ref(flat_prop : &str) -> Result<PropertyRef, ParseError> {
@@ -244,8 +244,8 @@ pub fn parse_prop_ref(flat_prop : &str) -> Result<PropertyRef, ParseError> {
     match prop_parser::parse_prop_ref_with_aspect(flat_prop) {
         Ok((name, opt_aspect)) => {
             match opt_aspect {
-                Some(aspect) => Ok(PropertyRef::Aspect(name.to_string(), aspect.to_string())),
-                None => Ok(PropertyRef::Value(name.to_string()))
+                Some(aspect) => Ok(PropertyRef::Aspect(name, aspect)),
+                None => Ok(PropertyRef::Value(name))
             }
             
         },

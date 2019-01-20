@@ -18,7 +18,7 @@ pub mod resolver;
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct NodeId {}
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Offer {
     pub offer_id : Uuid,
     pub provider_id : NodeId,

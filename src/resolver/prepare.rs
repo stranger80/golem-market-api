@@ -1,6 +1,8 @@
 
 use uuid::Uuid;
 
+use asnom::structures::{Tag};
+
 use super::errors::{ PrepareError };
 use super::super::{ NodeId, Demand, Offer };
 use super::expression::{ Expression, build_expression };
@@ -18,29 +20,34 @@ pub struct PreparedOffer<'a> {
     pub properties : PropertySet<'a>,
 
     // Filter expression
-    pub constraints : Expression,
+    pub constraints : Expression<'a>,
+
+    constraints_tag : Tag,
+
+    pub offer : &'a Offer,
 }
 
 impl <'a> PreparedOffer<'a> {
-    pub fn from(offer : &'a Offer) -> Result<PreparedOffer, PrepareError> {
-        let offer_cons_tags = match ldap_parser::parse(&offer.constraints) {
-            Ok(tags) => tags ,
-            Err(error) => { return Err(PrepareError::new(&format!("Error parsing Offer constraints: {}", error)))}
-        };
-        
-        let offer_cons_expr = match build_expression(&offer_cons_tags) {
-            Ok(expr) => expr,
-            Err(error) => { return Err(PrepareError::new(&format!("Error building Offer constraints expression: {}", error)))}
-        };
-
-        let result = PreparedOffer{
+    pub fn from(offer : &'a Offer) -> Result<PreparedOffer<'a>, PrepareError> {
+        let mut result = PreparedOffer{
             offer_id : offer.offer_id.clone(),
             provider_id : offer.provider_id.clone(),
             properties : PropertySet::from_flat_props(&offer.properties),
-            constraints : offer_cons_expr
+            constraints : Expression::Empty, //offer_cons_expr,
+            constraints_tag : match ldap_parser::parse(&offer.constraints) {
+                     Ok(tags) => tags,
+                     Err(error) => { return Err(PrepareError::new(&format!("Error parsing Offer constraints: {}", error)))}
+                 },
+            offer : offer,
+        };
+
+        result.constraints = match build_expression(&result.constraints_tag) {
+             Ok(expr) => expr,
+             Err(error) => { return Err(PrepareError::new(&format!("Error building Offer constraints expression: {}", error)))}
         };
 
         Ok(result)
+        
     }
 }
 
@@ -55,12 +62,12 @@ pub struct PreparedDemand<'a> {
     pub properties : PropertySet<'a>,
 
     // Filter expression
-    pub constraints : Expression,
+    pub constraints : Expression<'a>,
 }
 
 impl <'a> PreparedDemand<'a> {
     // Process a Demand to obtain a PreparedDemand
-    pub fn from(demand : &'a Demand) -> Result<PreparedDemand, PrepareError> {
+    pub fn from(demand : &'a Demand) -> Result<PreparedDemand<'a>, PrepareError> {
         let demand_cons_tags = match ldap_parser::parse(&demand.constraints) {
             Ok(tags) => tags ,
             Err(error) => { return Err(PrepareError::new(&format!("Error parsing Demand constraints: {}", error)))}

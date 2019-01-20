@@ -17,20 +17,20 @@ pub enum ResolveResult<'a> {
 
 // Expression structure is the vehicle for LDAP filter expression resolution
 #[derive(Clone, Debug, PartialEq)]
-pub enum Expression {
-    Equals(PropertyRef, String), // property ref, value
-    Greater(PropertyRef, String), // property ref, value
-    GreaterEqual(PropertyRef, String), // property ref, value
-    Less(PropertyRef, String), // property ref, value
-    LessEqual(PropertyRef, String), // property ref, value
-    Present(PropertyRef), // property ref
-    Or(Vec<Box<Expression>>), // operands
-    And(Vec<Box<Expression>>), // operands
-    Not(Box<Expression>), // operand
+pub enum Expression<'a> {
+    Equals(PropertyRef<'a>, String), // property ref, value
+    Greater(PropertyRef<'a>, String), // property ref, value
+    GreaterEqual(PropertyRef<'a>, String), // property ref, value
+    Less(PropertyRef<'a>, String), // property ref, value
+    LessEqual(PropertyRef<'a>, String), // property ref, value
+    Present(PropertyRef<'a>), // property ref
+    Or(Vec<Box<Expression<'a>>>), // operands
+    And(Vec<Box<Expression<'a>>>), // operands
+    Not(Box<Expression<'a>>), // operand
     Empty
 }
 
-impl Expression {
+impl <'a> Expression<'a> {
     // Implement strong resolution (ie. undefined results are propagated rather than ignored)
     // (DONE) It may be useful to return list of properties which couldn't be resolved 
     // (DONE) Properties of some simple types plus binary operators.  
@@ -41,7 +41,7 @@ impl Expression {
     // TODO: wildcard matching of value-less properties
     // TODO: aspects
     // TODO: finalize and review the matching relation implementations
-    pub fn resolve<'a>(&'a self, property_set : &'a PropertySet) -> ResolveResult {
+    pub fn resolve(&'a self, property_set : &'a PropertySet) -> ResolveResult {
         match self {
             Expression::Equals(attr, val) => {
                 self.resolve_with_function(attr, val, property_set, |prop_value : &PropertyValue, val : &str| -> bool { prop_value.equals(val) } )
@@ -80,7 +80,7 @@ impl Expression {
         }
     }
 
-    fn resolve_with_function<'a>(&'a self, attr : &'a PropertyRef, val : &str, property_set : &'a PropertySet, oper_function : impl Fn(&PropertyValue, &str) -> bool) -> ResolveResult  {
+    fn resolve_with_function(&'a self, attr : &'a PropertyRef, val : &str, property_set : &'a PropertySet, oper_function : impl Fn(&PropertyValue, &str) -> bool) -> ResolveResult  {
         // TODO this requires rewrite to cater for implicit properties...
         // test if property exists and then if the value matches
 
@@ -138,7 +138,7 @@ impl Expression {
 
     }
 
-    fn resolve_and<'a>(&'a self, seq : &'a Vec<Box<Expression>>, property_set : &'a PropertySet) -> ResolveResult {
+    fn resolve_and(&'a self, seq : &'a Vec<Box<Expression>>, property_set : &'a PropertySet) -> ResolveResult {
         let mut all_un_props = vec![];
         for exp in seq {
             match exp.resolve(property_set) {
@@ -158,7 +158,7 @@ impl Expression {
         ResolveResult::True
     }
 
-    fn resolve_or<'a>(&'a self, seq : &'a Vec<Box<Expression>>, property_set : &'a PropertySet) -> ResolveResult {
+    fn resolve_or(&'a self, seq : &'a Vec<Box<Expression>>, property_set : &'a PropertySet) -> ResolveResult {
         let mut all_un_props = vec![];
         for exp in seq {
             match exp.resolve(property_set) {
@@ -179,7 +179,7 @@ impl Expression {
     }
 
     // Resolve property/aspect presence
-    fn resolve_present<'a>(&self, attr : &'a PropertyRef, property_set : &'a PropertySet) -> ResolveResult<'a> {
+    fn resolve_present(&self, attr : &'a PropertyRef, property_set : &'a PropertySet) -> ResolveResult<'a> {
         match attr {
             // for value reference - only check if property exists in PropertySet
             PropertyRef::Value(name) => {
@@ -226,7 +226,7 @@ impl Expression {
 
 // #region Expression building
 
-pub fn build_expression(root : &Tag) -> Result<Expression, ExpressionError> {
+pub fn build_expression<'a>(root : &'a Tag) -> Result<Expression<'a>, ExpressionError> {
     match root {
         Tag::Sequence(seq) => {
             match seq.id {
